@@ -1,0 +1,41 @@
+# --- Build Artifacts (Maven/Gradle) ---
+target/
+build/
+out/
+.gradle/
+.lazybones/
+.m2/
+
+# --- Compiled Java Class files ---
+*.class
+*.jar
+*.war
+*.ear
+*.nar
+
+# --- IDE Settings ---
+.idea/
+*.iml
+*.iws
+*.ipr
+.vscode/
+.settings/
+.classpath
+.project
+.factorypath
+
+# --- Configuration & Secrets ---
+# Игнорируем внешние настройки, чтобы не спалить пароли от БД
+.env
+application-local.properties
+application-local.yml
+
+# --- Logs ---
+*.log
+logs/
+
+# --- Wrappers ---
+# Если хочешь, чтобы другие могли собрать проект без установки Maven/Gradle,
+# НЕ игнорируй mvnw или gradlew. Но если они не нужны — раскомментируй:
+# !mvnw
+# !gradlew
