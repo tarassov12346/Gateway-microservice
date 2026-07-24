@@ -3,6 +3,7 @@ package com.app.service.gateway.config;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
+import jakarta.annotation.PostConstruct;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -16,45 +17,49 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
 
+import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
 
 @Component
 public class AuthenticationFilter extends AbstractGatewayFilterFactory<AuthenticationFilter.Config> {
     private static final Logger log = LoggerFactory.getLogger(AuthenticationFilter.class);
+
     @Value("${jwt.secret}")
     private String secret;
 
+    private SecretKey signingKey;
+
     public AuthenticationFilter() {
         super(Config.class);
+    }
+
+    @PostConstruct
+    public void init() {
+        this.signingKey = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
+        log.info("🔒 Криптографический ключ JWT успешно сгенерирован и закэширован в памяти шлюза");
     }
 
     @Override
     public GatewayFilter apply(Config config) {
         return (exchange, chain) -> {
             ServerHttpRequest request = exchange.getRequest();
-
-            // Внутри метода apply:
             String authHeader = request.getHeaders().getFirst(HttpHeaders.AUTHORIZATION);
             String token = null;
 
             if (authHeader != null && authHeader.startsWith("Bearer ")) {
                 token = authHeader.substring(7);
             } else {
-                // Если заголовка нет, берем из параметра "token"
                 token = request.getQueryParams().getFirst("token");
             }
 
             if (token == null) {
-                log.warn("❌ No token found in headers or query params");
+                log.warn("⚠️ Токен авторизации не найден. Маршрут: {}", request.getPath());
                 return onError(exchange, HttpStatus.UNAUTHORIZED);
             }
-// дальше твой код проверки JWT...
-
 
             try {
-                // 2. Валидация токена
                 Claims claims = Jwts.parserBuilder()
-                        .setSigningKey(Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8)))
+                        .setSigningKey(signingKey)
                         .build()
                         .parseClaimsJws(token)
                         .getBody();
@@ -62,21 +67,22 @@ public class AuthenticationFilter extends AbstractGatewayFilterFactory<Authentic
                 String userId = String.valueOf(claims.get("userId"));
                 String username = claims.getSubject();
 
-                log.debug("✅ Token validated for user: {} (ID: {})", username, userId);
+                // 🛰️ ЛОГИРОВАНИЕ НА ГЕЙТВЕЕ (Показывает прохождение данных через шлюз)
+                log.info("🛰️ ГЕЙТВЕЙ ТРАССИРОВКА: Пользователь '{}' (ID: {}) успешно прошел аутентификацию. Маршрутизация на целевой путь: [{}] {}",
+                        username, userId, request.getMethod(), request.getPath());
 
-                // 3. Мутация запроса (прокидываем заголовки в микросервисы)
+                // Мутируем запрос, добавляя заголовки безопасности X-Headers
                 ServerWebExchange mutatedExchange = exchange.mutate()
                         .request(request.mutate()
                                 .header("X-User-Id", userId)
                                 .header("X-User-Name", username)
-                                // Можно удалить Authorization, чтобы микросервисы его не парсили повторно
                                 .build())
                         .build();
 
                 return chain.filter(mutatedExchange);
 
             } catch (Exception e) {
-                log.error("💥 JWT Validation failed: {}", e.getMessage());
+                log.warn("⚠️ Сбой валидации JWT токена для IP {}: {}", request.getRemoteAddress(), e.getMessage());
                 return onError(exchange, HttpStatus.UNAUTHORIZED);
             }
         };
@@ -85,7 +91,6 @@ public class AuthenticationFilter extends AbstractGatewayFilterFactory<Authentic
     private Mono<Void> onError(ServerWebExchange exchange, HttpStatus httpStatus) {
         ServerHttpResponse response = exchange.getResponse();
         response.setStatusCode(httpStatus);
-        // Можно добавить заголовок с причиной ошибки для фронтенда
         response.getHeaders().add("WWW-Authenticate", "Bearer error=\"invalid_token\"");
         return response.setComplete();
     }
