@@ -91,3 +91,23 @@
 2. Выполнить сборку проекта и очистку артефактов: `mvn clean compile`.
 3. Запустить приложение с помощью встроенного плагина Spring Boot.
 4. **Рекомендация для диагностики Loom:** При запуске приложения в вашей IDE (например, IntelliJ IDEA) или через JAR рекомендуется передавать JVM-аргумент `-Djdk.tracePinnedThreads=short` в VM Options для контроля отсутствия блокировок несущих потоков операционной системы.
+
+## 🐳 Контейнеризация и CI/CD Автоматизация
+
+Проект полностью автоматизирован и интегрирован с облачной инфраструктурой:
+
+* **Автосборка (GitHub Actions):** При каждом `git push` в ветку `main`/`master` автоматически запускается конвейер GitHub Actions. Робот собирает JAR-файл (JDK 21), упаковывает его в легковесный Docker-образ и отправляет в Docker Hub.
+* **Репозиторий образов:** Свежие версии всегда доступны на https://hub.docker.com/repositories/tarassov12346.
+* **Сетевой режим (Host Network):** Для исключения конфликтов маршрутизации в облачных средах разработки (GitHub Codespaces) контейнер запускается напрямую в хост-сети машины (`--network host`), что минимизирует накладные расходы на CPU и ОЗУ.
+
+### 🚀 Быстрый запуск в Docker (Хост-режим)
+Если необходимо запустить данный микросервис отдельно из готового облачного образа:
+```bash
+docker run -d \
+  --name gateway-service \
+  --network host \
+  -e EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://localhost:1111/eureka/ \
+  -e EUREKA_INSTANCE_PREFER_IP_ADDRESS=true \
+  -e JAVA_TOOL_OPTIONS="-Xmx256m" \
+  tarassov12346/gateway-service:latest
+```
