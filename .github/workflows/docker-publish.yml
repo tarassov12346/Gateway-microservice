@@ -30,3 +30,22 @@ jobs:
           context: .
           push: true
           tags: tarassov12346/gateway-service:latest
+
+      # 🔥 НА ТИВНЫЙ АВТОДЕПЛОЙ В КОДС ПЕЙС (ЖЕЛЕЗОБЕТОННЫЙ ВАРИАНТ)
+      - name: Trigger Redeploy in GitHub Codespaces
+        run: |
+          # Находим имя вашего активного Codespace для репозитория полигона PWD-POLYGONE
+          CODESPACE_NAME=$(gh cs list --json name,repository --jq '.[] | select(.repository == "tarassov12346/PWD-POLYGONE") | .name' | head -n 1)
+          
+          if [ -z "$CODESPACE_NAME" ]; then
+            echo "⚠️  Активный Codespace для PWD-POLYGONE не найден. Пропускаем деплой."
+            exit 0
+          fi
+          
+          echo "🚀 Найден активный Codespace: $CODESPACE_NAME. Отправляем команду обновления..."
+          
+          # Подключаемся по SSH, переходим в папку полигона, стягиваем новый образ и перезапускаем gateway-service
+          gh cs ssh -c "$CODESPACE_NAME" -- "cd /workspaces/PWD-POLYGONE && docker compose pull gateway-service && docker compose up -d gateway-service"
+        env:
+          GH_TOKEN: ${{ secrets.MICROSERVICES_DEPLOY_TOKEN }}
+

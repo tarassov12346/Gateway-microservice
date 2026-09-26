@@ -37,6 +37,8 @@ public class AuthenticationFilter extends AbstractGatewayFilterFactory<Authentic
     public void init() {
         this.signingKey = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
         log.info("🔒 Криптографический ключ JWT успешно сгенерирован и закэширован в памяти шлюза");
+        // 🎯 ВПЕНДЮРИВАЕМ НАШУ МАРКИРОВКУ СЮДА:
+        log.info("🚀🚀🚀 [GATEWAY-SERVICE v5.0] КОНТЕЙНЕР УСПЕШНО ОБНОВЛЕН! Сетевой шлюз безопасности запущен.");
     }
 
     @Override
